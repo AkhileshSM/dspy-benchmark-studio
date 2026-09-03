@@ -1,0 +1,34 @@
+{
+  "input": {
+    "task_description": "Answer a factual question grounded in a short reading passage.",
+    "examples": [
+      {
+        "passage": "The Eiffel Tower is a wrought-iron lattice tower on the Champ de Mars in Paris, France. It is named after the engineer Gustave Eiffel, whose company designed and built the tower. Locally nicknamed 'La dame de fer' (French for 'Iron Lady'), it was constructed from 1887 to 1889 as the centerpiece of the 1889 World's Fair.",
+        "question": "Who was the Eiffel Tower named after?",
+        "expected_answer": "Gustave Eiffel"
+      },
+      {
+        "passage": "Photosynthesis is the process used by plants, algae and certain bacteria to harness energy from sunlight and turn it into chemical energy. During photosynthesis in green plants, light energy is captured and used to convert water, carbon dioxide, and minerals into oxygen and energy-rich organic compounds.",
+        "question": "What gas do plants release during photosynthesis?",
+        "expected_answer": "Oxygen"
+      },
+      {
+        "passage": "The Amazon River in South America is the largest river by discharge volume of water in the world. It carries more than five times the volume of the Congo or any of the other largest rivers. Its drainage basin covers about 7 million square kilometers, though parts of it are in dispute.",
+        "question": "Which is the largest river by discharge volume in the world?",
+        "expected_answer": "The Amazon River"
+      },
+      {
+        "passage": "Marie Curie, born in Warsaw in 1867, was a physicist and chemist. She conducted pioneering research on radioactivity. She was the first woman to win a Nobel Prize, the first person to win a Nobel Prize twice, and the only person to win the Nobel Prize in two different scientific fields — Physics (1903) and Chemistry (1911).",
+        "question": "In which two scientific fields did Marie Curie win Nobel Prizes?",
+        "expected_answer": "Physics and Chemistry"
+      },
+      {
+        "passage": "The Hubble Space Telescope is a space telescope that was launched into low Earth orbit in 1990. It has enabled significant breakthroughs in astrophysics, such as accurately determining the rate of expansion of the universe. The telescope was named after astronomer Edwin Hubble, whose observations in the 1920s confirmed that the universe is expanding.",
+        "question": "In what year was the Hubble Space Telescope launched?",
+        "expected_answer": "1990"
+      }
+    ],
+    "model": "qwen3.5:4b-mlx",
+    "train_ratio": 0.6
+  }
+}

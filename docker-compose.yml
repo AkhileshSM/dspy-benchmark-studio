@@ -1,0 +1,50 @@
+services:
+  control-plane:
+    image: agentfield/control-plane:latest
+    environment:
+      AGENTFIELD_STORAGE_MODE: local
+      AGENTFIELD_HTTP_ADDR: 0.0.0.0:8080
+    ports:
+      - "${AGENTFIELD_HTTP_PORT:-8080}:8080"
+    volumes:
+      - agentfield-data:/data
+    # NOTE: agentfield/control-plane:latest is a distroless image — no sh, no wget, no curl.
+    # A CMD-based healthcheck cannot run inside the container. The agent SDK retries
+    # connection to the control plane on startup, so service_started is sufficient.
+
+  dspy-benchmark-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      AGENTFIELD_SERVER: http://control-plane:8080
+      AGENT_CALLBACK_URL: http://dspy-benchmark-studio:8001
+      AGENT_NODE_ID: ${AGENT_NODE_ID:-dspy-benchmark-studio}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+      AI_MODEL: ${AI_MODEL:-ollama/llama3.2}
+      PORT: ${PORT:-8001}
+    ports:
+      - "${AGENT_NODE_PORT:-8001}:8001"
+    depends_on:
+      control-plane:
+        condition: service_started
+    restart: on-failure
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    restart: unless-stopped
+
+volumes:
+  agentfield-data:
