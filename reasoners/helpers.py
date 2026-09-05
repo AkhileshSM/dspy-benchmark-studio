@@ -17,17 +17,28 @@ from typing import Any, Optional
 
 # ---------- Constants ----------
 
-NAIVE_RAW_PROMPT = """You are a careful reading-comprehension assistant.
+DEFAULT_TASK = "Answer a factual question grounded in a short reading passage."
 
-Read the passage below, then answer the question using ONLY information from the passage.
-If the answer is not in the passage, say "I cannot determine the answer from the passage."
 
-Passage:
-{passage}
+def naive_prompt(task_description: Optional[str] = None) -> str:
+    """Hand-crafted prompt template. `{passage}` / `{question}` are filled per example.
 
-Question: {question}
+    `task_description` is the one sentence both the naive run and DSPy start from.
+    """
+    task = (task_description or "").strip() or DEFAULT_TASK
+    return (
+        "You are a careful assistant.\n\n"
+        f"Task: {task}\n\n"
+        "Read the passage below, then answer the question using ONLY information from the passage.\n"
+        'If the answer is not in the passage, say "I cannot determine the answer from the passage."\n\n'
+        "Passage:\n{passage}\n\n"
+        "Question: {question}\n\n"
+        "Answer:"
+    )
 
-Answer:"""
+
+# Backward-compatible default used by fallbacks and older call sites.
+NAIVE_RAW_PROMPT = naive_prompt()
 
 
 # ---------- Fallback constructors (safe-default Pydantic instances) ----------
@@ -109,11 +120,12 @@ def run_naive_one(
     passage: str,
     question: str,
     model: Optional[str],
+    task_description: Optional[str] = None,
 ) -> tuple[str, str, int, float]:
     """Run the hand-crafted prompt via the LLM and return (answer, prompt, tokens, latency_ms)."""
     from . import llm  # local helper module (created in this package)
 
-    prompt = NAIVE_RAW_PROMPT.format(passage=passage, question=question)
+    prompt = naive_prompt(task_description).format(passage=passage, question=question)
     t0 = time.perf_counter()
     answer = llm.complete(prompt, model=model)
     latency_ms = (time.perf_counter() - t0) * 1000.0

@@ -94,6 +94,7 @@ class BenchmarkReport(BaseModel):
     """The final user-facing benchmark report."""
     task_description: str
     model: str
+    provider: str = "ollama"  # "ollama" | "openai"
     strategies: list[StrategyResult]
     enhanced_round: Optional[EnhancedStrategyResult] = None
     gap_analysis: Optional[GapAnalysis] = None

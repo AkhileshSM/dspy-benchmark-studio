@@ -120,8 +120,6 @@ async def single_example_runner(
     """
     try:
         prompt = prompt_to_use or helpers.NAIVE_RAW_PROMPT
-        if strategy == "naive":
-            prompt = helpers.NAIVE_RAW_PROMPT
 
         # All three strategies go through the same direct LLM completion path.
         # The difference is the prompt (raw vs compiled) and whether we ask
@@ -220,6 +218,7 @@ async def _run_strategy(
     train_examples: list[dict],
     eval_examples: list[dict],
     model: Optional[str],
+    task_description: str = "",
     enhanced: bool = False,
     max_bootstrapped_demos: int = 4,
     num_trials: int = 12,
@@ -231,7 +230,7 @@ async def _run_strategy(
     since DSPy objects don't survive JSON serialization), capture the
     resulting compiled_prompt, then fan out using that prompt.
     """
-    raw_prompt = helpers.NAIVE_RAW_PROMPT
+    raw_prompt = helpers.naive_prompt(task_description)
     compiled_prompt = raw_prompt
 
     if strategy_name != "naive":
@@ -241,6 +240,7 @@ async def _run_strategy(
                 optimizer=optimizer_name,
                 train_examples=train_examples,
                 model=model,
+                task_description=task_description,
                 enhanced=enhanced,
                 max_bootstrapped_demos=max_bootstrapped_demos,
                 num_trials=num_trials,
@@ -297,6 +297,7 @@ def _compile_dspy_prompt(
     optimizer: str,
     train_examples: list[dict],
     model: Optional[str],
+    task_description: str = "",
     enhanced: bool,
     max_bootstrapped_demos: int,
     num_trials: int,
@@ -312,27 +313,25 @@ def _compile_dspy_prompt(
     """
     import dspy
 
-    chosen_model = model or os.getenv("OLLAMA_MODEL", "llama3.2")
-    ollama_base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
-    ollama_key = os.getenv("OLLAMA_API_KEY", "")
+    from . import llm
+
+    cfg = llm.resolve_config(model)
 
     try:
-        lm = dspy.LM(
-            model=f"openai/{chosen_model}",
-            api_base=f"{ollama_base}/v1",
-            api_key=ollama_key or "ollama",
-            max_tokens=512,
-            temperature=0.0,
-        )
+        lm = dspy.LM(**cfg.dspy_kwargs(max_tokens=512))
         dspy.configure(lm=lm)
     except Exception:
         return helpers.NAIVE_RAW_PROMPT, "fallback"
+
+    instructions = (task_description or "").strip() or helpers.DEFAULT_TASK
 
     class QASignature(dspy.Signature):
         """Answer a factual question given a passage."""
         passage: str = dspy.InputField(desc="A short passage of text")
         question: str = dspy.InputField(desc="A factual question about the passage")
         answer: str = dspy.OutputField(desc="A concise answer grounded in the passage")
+
+    QASignature.__doc__ = instructions
 
     if strategy == "dspy_predict":
         program = dspy.Predict(QASignature)
@@ -439,6 +438,7 @@ async def naive_prompting(
     train_examples: list[dict],
     eval_examples: list[dict],
     model: Optional[str] = None,
+    task_description: str = "",
 ) -> StrategyResult:
     """Strategy 1: hand-crafted prompt, no DSPy, no optimization."""
     return await _run_strategy(
@@ -447,6 +447,7 @@ async def naive_prompting(
         train_examples=train_examples,
         eval_examples=eval_examples,
         model=model,
+        task_description=task_description,
     )
 
 
@@ -455,6 +456,7 @@ async def dspy_predict_optimized(
     train_examples: list[dict],
     eval_examples: list[dict],
     model: Optional[str] = None,
+    task_description: str = "",
 ) -> StrategyResult:
     """Strategy 2: DSPy Predict compiled with BootstrapFewShot."""
     return await _run_strategy(
@@ -463,6 +465,7 @@ async def dspy_predict_optimized(
         train_examples=train_examples,
         eval_examples=eval_examples,
         model=model,
+        task_description=task_description,
     )
 
 
@@ -471,6 +474,7 @@ async def dspy_cot_optimized(
     train_examples: list[dict],
     eval_examples: list[dict],
     model: Optional[str] = None,
+    task_description: str = "",
 ) -> StrategyResult:
     """Strategy 3: DSPy ChainOfThought compiled with MIPROv2."""
     return await _run_strategy(
@@ -479,6 +483,7 @@ async def dspy_cot_optimized(
         train_examples=train_examples,
         eval_examples=eval_examples,
         model=model,
+        task_description=task_description,
     )
 
 
@@ -490,6 +495,7 @@ async def enhanced_cot_runner(
     max_bootstrapped_demos: int,
     num_trials: int,
     model: Optional[str] = None,
+    task_description: str = "",
 ) -> StrategyResult:
     """The 'best-effort' retry round with stronger compilation settings.
 
@@ -502,6 +508,7 @@ async def enhanced_cot_runner(
         train_examples=train_examples,
         eval_examples=eval_examples,
         model=model,
+        task_description=task_description,
         enhanced=True,
         max_bootstrapped_demos=max_bootstrapped_demos,
         num_trials=num_trials,

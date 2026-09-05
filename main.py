@@ -15,9 +15,16 @@ app = Agent(
     agentfield_server=os.getenv("AGENTFIELD_SERVER", "http://localhost:8080"),
     version="1.0.0",
     ai_config=AIConfig(
-        # LiteLLM-style model string. Ollama models use the ollama/ prefix.
-        # The DSPy optimizers use the same model via the helpers.llm module.
-        model=os.getenv("AI_MODEL", "ollama/llama3.2"),
+        # LiteLLM-style model string. Examples:
+        #   ollama/llama3.2
+        #   openai/gpt-4o-mini
+        #   openrouter/google/gemini-2.5-flash
+        # Q&A + DSPy compilation go through reasoners.llm (Ollama native or
+        # any OpenAI-compatible /v1/chat/completions endpoint).
+        model=os.getenv("AI_MODEL")
+        or os.getenv("OPENAI_MODEL")
+        or os.getenv("OLLAMA_MODEL")
+        or "ollama/llama3.2",
     ),
     dev_mode=True,
 )

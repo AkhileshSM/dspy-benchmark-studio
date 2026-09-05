@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import asyncio
 import os
-from typing import Any, Optional
+from typing import Optional
 
 from agentfield import AgentRouter
 
 from . import helpers
+from . import llm
 from .models import (
     BenchmarkReport,
     EnhancedStrategyResult,
@@ -23,6 +24,24 @@ from .models import (
 
 NODE_ID = os.getenv("AGENT_NODE_ID", "dspy-benchmark-studio")
 router = AgentRouter(prefix="", tags=["meta"])
+
+
+@router.skill(tags=["ops"])
+def llm_status(model: Optional[str] = None) -> dict:
+    """Return the resolved LLM provider, model, and a best-effort model list."""
+    cfg = llm.resolve_config(model)
+    try:
+        available = llm.list_available_models(cfg)[:50]
+    except Exception:
+        available = []
+    return {
+        "provider": cfg.provider,
+        "vendor": cfg.vendor,
+        "model": cfg.api_model,
+        "display_model": cfg.display_model,
+        "base_url": cfg.openai_base if cfg.provider == "openai" else cfg.host,
+        "available_models": available,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -111,14 +130,17 @@ async def benchmark_orchestrator(
         router.call(
             f"{NODE_ID}.naive_prompting",
             train_examples=train, eval_examples=eval_set, model=model,
+            task_description=task_description,
         ),
         router.call(
             f"{NODE_ID}.dspy_predict_optimized",
             train_examples=train, eval_examples=eval_set, model=model,
+            task_description=task_description,
         ),
         router.call(
             f"{NODE_ID}.dspy_cot_optimized",
             train_examples=train, eval_examples=eval_set, model=model,
+            task_description=task_description,
         ),
     )
 
@@ -146,6 +168,7 @@ async def benchmark_orchestrator(
             max_bootstrapped_demos=gap.recommended_max_bootstrapped_demos,
             num_trials=gap.recommended_num_trials,
             model=model,
+            task_description=task_description,
         )
         # enhanced_cot_runner returns a StrategyResult; wrap as Enhanced
         enh_strat = StrategyResult(**enh_dict)
@@ -173,9 +196,11 @@ async def benchmark_orchestrator(
         ((best.accuracy - naive_acc) / max(naive_acc, 1e-9)) * 100.0
     )
 
+    cfg = llm.resolve_config(model)
     return BenchmarkReport(
         task_description=task_description,
-        model=model or os.getenv("OLLAMA_MODEL", "llama3.2"),
+        model=cfg.display_model,
+        provider=cfg.provider,
         strategies=strategies,
         enhanced_round=enhanced,
         gap_analysis=gap,

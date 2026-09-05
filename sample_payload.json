@@ -28,7 +28,7 @@
         "expected_answer": "1990"
       }
     ],
-    "model": "qwen3.5:4b-mlx",
+    "model": "ollama/llama3.2",
     "train_ratio": 0.6
   }
 }
